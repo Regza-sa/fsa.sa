@@ -1,6 +1,12 @@
 <script>
     let { lang } = $props();
     import {
+        waddahAudio,
+        aynAudio,
+        nafisAudio,
+        rahhalAudio,
+    } from "./assets/planetaudio";
+    import {
         planets,
         star,
         FASIL_MESH_RADIUS,
@@ -8,6 +14,8 @@
         bodyRadiusUnits,
     } from "$lib/census";
     import Waddah from "$lib/planets/waddah.svelte";
+    import Ayn from "$lib/planets/ayn.svelte";
+    import { waddahIcon, aynIcon } from "$lib/assets/planeticons";
     import { T, useTask, useThrelte } from "@threlte/core";
     import { OrbitControls, HTML } from "@threlte/extras";
     import {
@@ -54,6 +62,10 @@
         activeBody = id;
         controls.enabled = false;
         dir.subVectors(controls.object.position, spot).normalize();
+
+        if (audioEls[id]) {
+            audioEls[id].load();
+        }
 
         await flight.set(0, { duration: 0 });
         await flight.set(1);
@@ -105,7 +117,7 @@
     }
 
     function soiUnits(body) {
-        return bodyRadiusUnits(body) * 30;
+        return bodyRadiusUnits(body) * 100;
     }
 
     function languageCheck() {
@@ -138,16 +150,92 @@
     const starIntensity =
         star.luminosity * SUNLIGHT_AT_1AU * AU_UNITS * AU_UNITS;
 
+    // audio system
+
+    const audioSrc = {
+        1: rahhalAudio,
+        2: aynAudio,
+        3: waddahAudio,
+        4: nafisAudio,
+    };
+    const audioVolume = { 1: 0.2, 2: 0.4, 3: 0.15, 4: 0.4 };
+    const audioSeek = { 1: 0.5, 2: 2, 3: 0.5, 4: 0.5 };
+
+    let audioEls = $state([]);
+    let playing = $state(-1); // bodyid
+    let called = false;
+
+    function audioInit() {
+        called = true;
+        for (let i = 0; i < planets.length; i++) {
+            const audio = audioEls[planets[i].id];
+            audio.loop = true;
+            audio.volume = 0;
+        }
+    }
+
+    function seek(seconds, audio) {
+        if (audio.readyState >= 1) {
+            audio.currentTime = seconds;
+        } else {
+            audio.addEventListener(
+                "loadedmetadata",
+                () => (audio.currentTime = seconds),
+                { once: true },
+            );
+        }
+    }
+
+    function playAudio(bodyId) {
+        const audio = audioEls[bodyId];
+        if (!audio) return;
+        audio.volume = audioVolume[bodyId] ?? 0.3;
+        seek(audioSeek[bodyId] ?? 0, audio);
+        audio.play().catch((e) => console.log("blocked:", e.name));
+    }
+
     useTask((delta) => {
         elapsed += delta;
+
+        if (Object.keys(audioEls).length == planets.length && !called) {
+            audioInit();
+        }
 
         const body = bodies[activeBody];
         const mesh = meshes[activeBody];
         let targetOpacity = 0.5;
+        let sphereTargetOpacity = 1;
+        let targetVolume = 0;
         if (controls && controls.getDistance() < soiUnits(body)) {
             targetOpacity = 0;
+            sphereTargetOpacity = 0;
+
+            if (playing == -1 && called) {
+                playing = activeBody;
+                playAudio(activeBody);
+            }
+
+            for (let i = 0; i < planets.length; i++) {
+                const id = planets[i].id;
+                if (id != playing) {
+                    let audio = audioEls[planets[i].id];
+                    audio.volume +=
+                        (targetVolume - audio.volume) * Math.min(1, delta * 3);
+                }
+            }
+        } else {
+            playing = -1;
+            if (called) {
+                for (let i = 0; i < planets.length; i++) {
+                    let audio = audioEls[planets[i].id];
+                    audio.volume +=
+                        (targetVolume - audio.volume) * Math.min(1, delta * 3);
+                }
+            }
         }
         lineOpacity += (targetOpacity - lineOpacity) * Math.min(1, delta * 5);
+        sphereOpacity +=
+            (sphereTargetOpacity - sphereOpacity) * Math.min(1, delta * 5);
         scene.backgroundIntensity = lineOpacity * 2;
         if (controls && mesh && body) {
             mesh.getWorldPosition(spot);
@@ -203,8 +291,16 @@
         body.eccentricity,
         angle,
     )}
+    {@const active = activeBody === body.id}
 
-    {#if body.id !== 3}
+    <audio
+        bind:this={audioEls[body.id]}
+        src={audioSrc[body.id]}
+        preload="none"
+        loop
+    ></audio>
+
+    {#if body.id !== 3 && body.id !== 2}
         <T.Mesh
             position={[pos.x, 0, pos.z]}
             oncreate={(mesh) => (meshes[body.id] = mesh)}
@@ -212,28 +308,50 @@
             <T.SphereGeometry args={[bodyRadiusUnits(body), 64, 32]} />
             <T.MeshStandardMaterial color="teal" roughness={1} metalness={0} />
         </T.Mesh>
-    {:else}
+    {:else if body.id === 3}
         <Waddah output={(x) => (meshes[body.id] = x)} waddahPosition={pos} />
+    {:else if body.id === 2}
+        <Ayn output={(x) => (meshes[body.id] = x)} aynPosition={pos} />
     {/if}
 
     <!--selection sphere-->
     <HTML position={[pos.x, 0, pos.z]} center>
         <button
             class="marker"
+            class:selected={active}
             onclick={() => {
-                if (lineOpacity > 0) {
+                if (!active || lineOpacity > 0.03) {
                     flyTo(body.id);
                 }
             }}
             onpointerdowncapture={(e) => e.stopPropagation()}
         >
-            <span class="ring" style:opacity={lineOpacity}></span>
+            {#if body.id !== 3 && body.id !== 2}
+                <span class="ring" style:opacity={active ? sphereOpacity : null}
+                ></span>
+            {:else if body.id === 3}
+                <img
+                    class="icon"
+                    src={waddahIcon}
+                    style:opacity={active ? sphereOpacity : null}
+                    alt="Waddah icon"
+                />
+            {:else if body.id === 2}
+                <img
+                    class="icon"
+                    src={aynIcon}
+                    style:opacity={active ? sphereOpacity : null}
+                    alt="Waddah icon"
+                />
+            {/if}
             {#if arabic}
-                <span class="nameAr" style:opacity={lineOpacity}
+                <span
+                    class="nameAr"
+                    style:opacity={active ? sphereOpacity : null}
                     >{body.arBodyName}</span
                 >
             {:else}
-                <span class="name" style:opacity={lineOpacity}
+                <span class="name" style:opacity={active ? sphereOpacity : null}
                     >{body.bodyName}</span
                 >
             {/if}
@@ -248,7 +366,7 @@
         oncreate={(line) => line.computeLineDistances()}
     >
         <T.LineDashedMaterial
-            color="#999999"
+            color={planetData.orbitLineColor ?? "#999999"}
             opacity={lineOpacity}
             transparent={true}
             dashSize={1}
@@ -266,6 +384,9 @@
         cursor: pointer;
         pointer-events: auto;
     }
+    .selected {
+        pointer-events: none;
+    }
     .ring {
         display: block;
         width: 18px;
@@ -273,11 +394,16 @@
         border: 1.5px solid rgba(136, 204, 255, 0.8);
         border-radius: 50%;
     }
+    .icon {
+        display: block;
+        width: 36px;
+        height: 36px;
+    }
     .name {
         position: absolute;
-        right: 26px;
+        left: 32px;
         top: 50%;
-        transform: translateY(-50%);
+        transform: translateY(-70%);
         font-family: "IBM Plex Mono", monospace;
         letter-spacing: 0.35em;
         color: rgba(255, 255, 255, 0.85);
@@ -285,7 +411,7 @@
     }
     .nameAr {
         position: absolute;
-        right: 26px;
+        right: 32px; /*every planet eventually will have icons.*/
         top: 50%;
         transform: translateY(-50%);
         font-family: "IBM Plex Sans Arabic", sans-serif;

@@ -13,6 +13,7 @@ export const planets = [
         orbitalPeriod: 208,
         phase: 43,
         T_eq: 370,
+        orbitLineColor: "#f3ad7f"
     },
     {
         id: 2,
@@ -28,6 +29,7 @@ export const planets = [
         orbitalPeriod: 806,
         phase: 180,
         T_eq: 236,
+        orbitLineColor: "#FFFFFF"
     },
     {
         id: 3,
@@ -38,11 +40,12 @@ export const planets = [
         eccentricity: 0.03,
         periAph: [1.79, 1.91],
         earthRadius: 11.8,
-        axialTilt: 34,
+        axialTilt: 26,
         orbitalInclination: 0,
         orbitalPeriod: 806,
         phase: 120,
         T_eq: 236,
+        orbitLineColor: "#FFFFFF"
     },
     {
         id: 4,
@@ -58,6 +61,7 @@ export const planets = [
         orbitalPeriod: 2234,
         phase: 0,
         T_eq: 168,
+        orbitLineColor: "#ff8989"
     },
 ];
 
