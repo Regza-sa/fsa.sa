@@ -12,7 +12,7 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" />
+	<!-- <link rel="icon" /> -->
 </svelte:head>
 
 {@render children()}
