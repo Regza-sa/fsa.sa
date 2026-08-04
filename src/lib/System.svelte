@@ -150,12 +150,24 @@
     let playing = $state(-1); // bodyid
     let called = false;
 
+    let ctx = null;
+    let gains = {};
+
     function audioInit() {
         called = true;
+        ctx = new AudioContext();
         for (let i = 0; i < planets.length; i++) {
-            const audio = audioEls[planets[i].id];
+            const id = planets[i].id;
+            const audio = audioEls[id];
             audio.loop = true;
-            audio.volume = 0;
+            audio.volume = 1;
+
+            const source = ctx.createMediaElementSource(audio);
+            const gain = ctx.createGain();
+            gain.gain.value = 0;
+            source.connect(gain);
+            gain.connect(ctx.destination);
+            gains[id] = gain;
         }
     }
 
@@ -172,10 +184,12 @@
     }
 
     function playAudio(bodyId) {
-        const audio = audioEls[bodyId];
-        if (!audio) return;
-        audio.volume = audioVolume[bodyId] ?? 0.3;
+        let gain = gains[bodyId];
+        let audio = audioEls[bodyId];
+        if (!gain) return;
+        gain.gain.value = audioVolume[bodyId] ?? 0.3;
         seek(audioSeek[bodyId] ?? 0, audio);
+        ctx.resume();
         audio.play().catch((e) => console.log("blocked:", e.name));
     }
 
@@ -208,9 +222,10 @@
             for (let i = 0; i < planets.length; i++) {
                 const id = planets[i].id;
                 if (id != playing) {
-                    let audio = audioEls[planets[i].id];
-                    audio.volume +=
-                        (targetVolume - audio.volume) * Math.min(1, delta * 3);
+                    let gain = gains[planets[i].id];
+                    gain.gain.value +=
+                        (targetVolume - gain.gain.value) *
+                        Math.min(1, delta * 3);
                 }
             }
         } else {
@@ -221,9 +236,10 @@
             playing = -1;
             if (called) {
                 for (let i = 0; i < planets.length; i++) {
-                    let audio = audioEls[planets[i].id];
-                    audio.volume +=
-                        (targetVolume - audio.volume) * Math.min(1, delta * 3);
+                    let gain = gains[planets[i].id];
+                    gain.gain.value +=
+                        (targetVolume - gain.gain.value) *
+                        Math.min(1, delta * 3);
                 }
             }
         }
