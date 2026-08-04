@@ -1,7 +1,6 @@
 /** @type {import('./$types').LayoutServerLoad} */
-export async function load({ request }) {
-    const lang = request.headers.get('accept-language');
+export async function load({ locals }) {
     return {
-        language: lang
-    }
+        language: locals.lang,
+    };
 }

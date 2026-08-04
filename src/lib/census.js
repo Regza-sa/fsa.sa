@@ -1,8 +1,7 @@
 export const planets = [
     {
         id: 1,
-        bodyName: "Rahhal",
-        arBodyName: "الرحال",
+        name: { en: "Rahhal", ar: "الرحال" },
         subType: "Venus-like world",
         semiMajorAxis: 0.75,
         eccentricity: 0.43,
@@ -17,8 +16,7 @@ export const planets = [
     },
     {
         id: 2,
-        bodyName: "Ayn",
-        arBodyName: "العين",
+        name: { en: "Ayn", ar: "العين" },
         subType: "Earth-like world",
         semiMajorAxis: 1.85,
         eccentricity: 0.03,
@@ -33,8 +31,7 @@ export const planets = [
     },
     {
         id: 3,
-        bodyName: "Waddah",
-        arBodyName: "وضاح",
+        name: { en: "Waddah", ar: "وضاح" },
         subType: "Class II gas giant",
         semiMajorAxis: 1.85,
         eccentricity: 0.03,
@@ -49,8 +46,7 @@ export const planets = [
     },
     {
         id: 4,
-        bodyName: "Nafis",
-        arBodyName: "النفيس",
+        name: { en: "Nafis", ar: "النفيس" },
         subType: "Titan-like world",
         semiMajorAxis: 3.65,
         eccentricity: 0.15,
@@ -72,8 +68,7 @@ export const KM_PER_AU = 149597871;
 
 export const star = {
     id: 0,
-    bodyName: "Fasil",
-    arBodyName: "الفاصل",
+    name: { en: "Fasil", ar: "الفاصل" },
     subType: "F-Type Star",
     solarMass: 1.3,
     solarRadius: 1.27,

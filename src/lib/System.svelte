@@ -1,5 +1,5 @@
 <script>
-    let { lang } = $props();
+    let { lang, setUI } = $props();
     import {
         waddahAudio,
         aynAudio,
@@ -120,21 +120,6 @@
         return bodyRadiusUnits(body) * 100;
     }
 
-    function languageCheck() {
-        let language = false;
-        if (lang.includes("-")) {
-            let code = lang.split("-", 1)[0];
-            if (code == "ar") {
-                language = true;
-                console.log("has arabic");
-            }
-            console.log("nope arabic");
-        } else {
-            language = lang.includes("ar");
-        }
-        return language;
-    }
-
     const EPOCH = Date.UTC(2026, 0, 1);
     let elapsed = $state((Date.now() - EPOCH) / 1000);
 
@@ -143,7 +128,7 @@
 
     let lineOpacity = $state(0.5);
     let sphereOpacity = $state(1);
-    let arabic = $state(languageCheck());
+    let UIStateCalled = $state(false);
 
     const SUNLIGHT_AT_1AU = 2;
     const AU_UNITS = auToUnits(1);
@@ -210,6 +195,11 @@
             targetOpacity = 0;
             sphereTargetOpacity = 0;
 
+            if (!UIStateCalled) {
+                UIStateCalled = true;
+                setUI(activeBody);
+            }
+
             if (playing == -1 && called) {
                 playing = activeBody;
                 playAudio(activeBody);
@@ -224,6 +214,10 @@
                 }
             }
         } else {
+            if (UIStateCalled) {
+                UIStateCalled = false;
+                setUI(-1);
+            }
             playing = -1;
             if (called) {
                 for (let i = 0; i < planets.length; i++) {
@@ -341,20 +335,12 @@
                     class="icon"
                     src={aynIcon}
                     style:opacity={active ? sphereOpacity : null}
-                    alt="Waddah icon"
+                    alt="Ayn icon"
                 />
             {/if}
-            {#if arabic}
-                <span
-                    class="nameAr"
-                    style:opacity={active ? sphereOpacity : null}
-                    >{body.arBodyName}</span
-                >
-            {:else}
-                <span class="name" style:opacity={active ? sphereOpacity : null}
-                    >{body.bodyName}</span
-                >
-            {/if}
+            <span class="name" style:opacity={active ? sphereOpacity : null}
+                >{body.name[lang]}</span
+            >
         </button>
     </HTML>
 {/each}
@@ -401,24 +387,22 @@
     }
     .name {
         position: absolute;
-        left: 32px;
+        inset-inline-start: 32px;
         top: 50%;
         transform: translateY(-70%);
-        font-family: "IBM Plex Mono", monospace;
+        font-family: "Newsreader Variable", serif;
         letter-spacing: 0.35em;
         color: rgba(255, 255, 255, 0.85);
         text-transform: uppercase;
-    }
-    .nameAr {
-        position: absolute;
-        right: 32px; /*every planet eventually will have icons.*/
-        top: 50%;
-        transform: translateY(-50%);
-        font-family: "IBM Plex Sans Arabic", sans-serif;
-        font-weight: 500;
-        direction: rtl;
-        font-size: 13px;
-        color: rgb(255, 255, 255);
         white-space: nowrap;
+    }
+    :global(html:lang(ar)) .name {
+        direction: rtl;
+        font-family: "Readex Pro Variable", sans-serif;
+        font-weight: 500;
+        font-size: 13px;
+        letter-spacing: normal;
+        text-transform: none;
+        color: rgb(255, 255, 255);
     }
 </style>
