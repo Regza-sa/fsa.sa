@@ -1,5 +1,5 @@
 <script>
-    let { lang, setUI } = $props();
+    let { lang, setUI, interactable = true } = $props();
     import {
         waddahAudio,
         aynAudio,
@@ -49,7 +49,7 @@
     let distLogTo = 0;
 
     async function flyTo(id) {
-        if (id === activeBody) {
+        if (!interactable || id === activeBody) {
             return;
         }
 
@@ -70,7 +70,7 @@
         await flight.set(0, { duration: 0 });
         await flight.set(1);
 
-        controls.enabled = true;
+        controls.enabled = interactable;
     }
 
     let planetsWithGeometry = $derived(
@@ -267,6 +267,10 @@
             controls.minDistance = bodyRadiusUnits(body) * 1.5;
         }
     });
+
+    $effect(() => {
+        if (controls) controls.enabled = interactable;
+    });
 </script>
 
 <T.PerspectiveCamera
@@ -325,9 +329,10 @@
     {/if}
 
     <!--selection sphere-->
-    <HTML position={[pos.x, 0, pos.z]} center>
+    <HTML position={[pos.x, 0, pos.z]} center zIndexRange={[100, 0]}>
         <button
             class="marker"
+            class:blocked={!interactable}
             class:selected={active}
             onclick={() => {
                 if (!active || lineOpacity > 0.03) {
@@ -378,6 +383,9 @@
 {/each}
 
 <style>
+    .blocked {
+        pointer-events: none;
+    }
     .marker {
         position: relative;
         background: none;

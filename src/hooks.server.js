@@ -1,6 +1,6 @@
 const SUPPORTED = ["en", "ar"];
 const FALLBACK = "en";
-const FORCE = null;
+const FORCE = "en";
 
 function resolveLang(header) {
     if (!header) return FALLBACK;
