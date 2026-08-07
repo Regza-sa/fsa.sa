@@ -112,6 +112,11 @@
         return rad(planet.phase) + elapsed * speed;
     }
 
+    export function flyToPage(bodyId) {
+        if (!bodyId) return;
+        flyTo(bodyId);
+    }
+
     function rad(deg) {
         return (deg * Math.PI) / 180;
     }

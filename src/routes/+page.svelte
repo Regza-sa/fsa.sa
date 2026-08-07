@@ -4,10 +4,14 @@
     import { cubicInOut } from "svelte/easing";
     import { MediaQuery } from "svelte/reactivity";
 
+    import { aynImage, waddahImage } from "$lib/assets/images";
+
     import System from "$lib/System.svelte";
     import xIcon from "$lib/assets/icons/x.svg?raw";
     import infoIcon from "$lib/assets/icons/info.svg?raw";
     import gearIcon from "$lib/assets/icons/gear.svg?raw";
+    import { redirect } from "@sveltejs/kit";
+    import { RGBADepthPacking } from "three";
     /** @type {import('./$types').PageProps} */
 
     let { data } = $props();
@@ -20,22 +24,25 @@
     let menuDebounce = $state(false);
     let menuWasOpen = $state(false);
 
+    let system;
+
     const narrow = new MediaQuery("max-width: 640px");
 
     const spin = new Tween(0, { duration: 400, easing: cubicInOut });
 
     const durationTween = 500;
+    const tweenType = cubicInOut;
     const sidebarTween = new Tween(100, {
         duration: durationTween,
-        easing: cubicInOut,
+        easing: tweenType,
     });
     const effect1Tween = new Tween(100, {
         duration: durationTween,
-        easing: cubicInOut,
+        easing: tweenType,
     });
     const effect2Tween = new Tween(100, {
         duration: durationTween,
-        easing: cubicInOut,
+        easing: tweenType,
     });
 
     // const wait = (seconds) =>
@@ -64,6 +71,44 @@
         ar: "ألبل",
     };
 
+    const menuItems = [
+        {
+            id: 1,
+            en: "Services",
+            ar: "الخدمات",
+            planetName: "Rahhal",
+            color: "rgb(179, 110, 46)",
+        },
+        {
+            id: 2,
+            en: "Contact",
+            ar: "تواصل",
+            image: aynImage,
+            planetName: "Ayn",
+            color: "rgb(50, 113, 168)",
+        },
+        {
+            id: 3,
+            en: "Projects",
+            ar: "المشاريع",
+            image: waddahImage,
+            planetName: "Waddah",
+            color: "rgb(217, 217, 217)",
+        },
+        {
+            id: 4,
+            en: "About",
+            ar: "نبذة",
+            planetName: "Nafis",
+            color: "rgb(156, 68, 25)",
+        },
+    ];
+
+    const menuPadding = {
+        en: "10px 30px",
+        ar: "12px 35px",
+    };
+
     async function animateButton(bool) {
         if (bool) {
             await spin.set(45);
@@ -76,12 +121,13 @@
         if (bool) {
             //open
             effect1Tween.set(0);
-            effect2Tween.set(0, { delay: 50 });
-            await sidebarTween.set(0, { delay: 90 });
+            effect2Tween.set(0, { delay: 40 });
+            await sidebarTween.set(0, { delay: 100 });
         } else {
+            //close
             sidebarTween.set(100);
             effect2Tween.set(100, { delay: 40 });
-            await effect1Tween.set(100, { delay: 90 });
+            await effect1Tween.set(100, { delay: 100 });
         }
     }
 
@@ -120,6 +166,7 @@
 
 <Canvas>
     <System
+        bind:this={system}
         lang={data.language}
         setUI={(x) => handleUI(x)}
         interactable={!(menuExists && narrow.current)}
@@ -129,10 +176,6 @@
 {#if menuExists}
     <div class="menu">
         <div
-            class="sidebar"
-            style:transform="translateX({sidebarTween.current}%)"
-        ></div>
-        <div
             class="effect1"
             style:transform="translateX({effect1Tween.current}%)"
         ></div>
@@ -140,6 +183,37 @@
             class="effect2"
             style:transform="translateX({effect2Tween.current}%)"
         ></div>
+        <div
+            class="sidebar"
+            style:transform="translateX({sidebarTween.current}%)"
+        >
+            <div class="emptyspace1"></div>
+            {#each menuItems as menuItem (menuItem.id)}
+                <button
+                    class="menuItemHolder"
+                    style:margin={menuPadding[data.language]}
+                    onclick={() => {
+                        menuDebounce = true;
+                        closeMenu();
+                        system.flyToPage(menuItem.id);
+                    }}
+                >
+                    <h3 class="planetName" style:color={menuItem.color}>
+                        {menuItem.planetName}
+                    </h3>
+                    <h3 class="planetNum">{"0" + menuItem.id}</h3>
+                    <h1
+                        class="textMenu"
+                        class:hasFill={menuItem.image}
+                        style:--fill={menuItem.image
+                            ? `url(${menuItem.image})`
+                            : null}
+                    >
+                        {menuItem[data.language]}
+                    </h1>
+                </button>
+            {/each}
+        </div>
     </div>
 {/if}
 
@@ -217,6 +291,18 @@
         inset: 0;
         pointer-events: none;
     }
+    .menuItemHolder {
+        position: relative;
+        background: none;
+        border: none;
+        margin: 0;
+        font: inherit;
+        color: inherit;
+        text-align: inherit;
+        width: fit-content;
+        cursor: pointer;
+        pointer-events: auto;
+    }
     .sidebar,
     .effect1,
     .effect2 {
@@ -227,8 +313,50 @@
         width: clamp(300px, 25%, 480px);
     }
     .sidebar {
+        display: flex;
+        flex-direction: column;
         z-index: 2;
-        background: black;
+        gap: 20px;
+        background: rgb(12, 12, 12);
+    }
+    .planetName {
+        position: absolute;
+        letter-spacing: normal;
+        top: 0;
+        right: auto;
+        left: 100%;
+        opacity: 0;
+    }
+    .planetNum {
+        position: absolute;
+        letter-spacing: normal;
+        color: rgb(255, 233, 136);
+        top: 0;
+        right: -20px;
+    }
+    .textMenu {
+        letter-spacing: 0.1em;
+        width: fit-content;
+        font-size: 3.5rem;
+        background-image: var(--fill);
+        background-size: cover;
+        background-position: center;
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: rgb(255, 255, 255);
+        transition: color 0.2s ease-in-out;
+    }
+    .menuItemHolder:hover .textMenu.hasFill {
+        color: rgba(255, 255, 255, 0);
+    }
+    .menuItemHolder:hover .planetNum {
+        opacity: 0;
+    }
+    .menuItemHolder:hover .planetName {
+        opacity: 1;
+    }
+    .emptyspace1 {
+        height: max(80px, 10dvh);
     }
     .effect2 {
         z-index: 1;
@@ -240,12 +368,8 @@
     }
 
     @media (max-width: 640px) {
-        .sidebar {
-            width: 100%;
-        }
-        .effect1 {
-            width: 100%;
-        }
+        .sidebar,
+        .effect1,
         .effect2 {
             width: 100%;
         }
@@ -388,10 +512,13 @@
         color: white;
         font-weight: 500;
     }
+
+    /*global*/
     h1 {
         margin: 0px;
         font-family: "Newsreader Variable", monospace;
         letter-spacing: 0.35em;
+        color: white;
         transition: opacity 0.5s ease-in-out;
     }
     h3 {
