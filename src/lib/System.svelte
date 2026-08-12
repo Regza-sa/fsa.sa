@@ -18,7 +18,7 @@
     import Ayn from "$lib/planets/ayn.svelte";
     import Rahhal from "$lib/planets/rahhal.svelte";
     import Flare from "$lib/planets/Flare.svelte";
-    import { waddahIcon, aynIcon } from "$lib/assets/planeticons";
+    import { waddahIcon, aynIcon, rahhalIcon } from "$lib/assets/planeticons";
     import { T, useTask, useThrelte } from "@threlte/core";
     import { OrbitControls, HTML } from "@threlte/extras";
     import {
@@ -407,7 +407,7 @@
             }}
             onpointerdowncapture={(e) => e.stopPropagation()}
         >
-            {#if body.id !== 3 && body.id !== 2}
+            {#if body.id !== 3 && body.id !== 2 && body.id !== 1}
                 <span class="ring" style:opacity={sphereOpacity}></span>
             {:else if body.id === 3}
                 <img
@@ -422,6 +422,13 @@
                     src={aynIcon}
                     style:opacity={sphereOpacity}
                     alt="Ayn icon"
+                />
+            {:else if body.id === 1}
+                <img
+                    class="icon"
+                    src={rahhalIcon}
+                    style:opacity={sphereOpacity}
+                    alt="Rahhal icon"
                 />
             {/if}
             <span class="name" style:opacity={sphereOpacity}
