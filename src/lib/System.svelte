@@ -16,6 +16,8 @@
     } from "$lib/census";
     import Waddah from "$lib/planets/waddah.svelte";
     import Ayn from "$lib/planets/ayn.svelte";
+    import Rahhal from "$lib/planets/rahhal.svelte";
+    import Flare from "$lib/planets/Flare.svelte";
     import { waddahIcon, aynIcon } from "$lib/assets/planeticons";
     import { T, useTask, useThrelte } from "@threlte/core";
     import { OrbitControls, HTML } from "@threlte/extras";
@@ -30,10 +32,10 @@
     } from "three";
     import { Tween } from "svelte/motion";
     import { cubicInOut } from "svelte/easing";
-    const { scene } = useThrelte();
+    const { scene, camera } = useThrelte();
     const bodies = [star, ...planets];
 
-    new TextureLoader().load("/textures/starmap.jpg", (tex) => {
+    new TextureLoader().load("/textures/starmap_muted.jpg", (tex) => {
         tex.mapping = EquirectangularReflectionMapping;
         tex.colorSpace = SRGBColorSpace;
         scene.background = tex;
@@ -41,10 +43,15 @@
 
     let activeBody = $state(0);
     let controls = $state();
+    let flying = $state(false);
     let meshes = $state({});
 
     const flight = new Tween(1, { duration: 3000, easing: cubicInOut });
     const flightFrom = new Vector3();
+    let flareOccluder = $state(null);
+    const occluders = $derived(
+        [...Object.values(meshes), flareOccluder].filter(Boolean),
+    );
 
     let distLogFrom = 0;
     let distLogTo = 0;
@@ -61,6 +68,7 @@
         distLogTo = Math.log(bodyRadiusUnits(bodies[id]) * 5);
 
         activeBody = id;
+        flying = true;
         controls.enabled = false;
         dir.subVectors(controls.object.position, spot).normalize();
 
@@ -71,7 +79,7 @@
         await flight.set(0, { duration: 0 });
         await flight.set(1);
 
-        controls.enabled = interactable;
+        flying = false;
     }
 
     let planetsWithGeometry = $derived(
@@ -217,6 +225,16 @@
         let targetOpacity = 0.5;
         let sphereTargetOpacity = 1;
         let targetVolume = 0;
+
+        if (controls) {
+            const d = controls.getDistance();
+            const want = Math.max(0.001, d * 0.002);
+            if (Math.abs(want - camera.current.near) > want * 0.1) {
+                camera.current.near = want;
+                camera.current.updateProjectionMatrix();
+            }
+        }
+
         if (controls && controls.getDistance() < soiUnits(body)) {
             targetOpacity = 0;
             sphereTargetOpacity = 0;
@@ -260,7 +278,7 @@
         lineOpacity += (targetOpacity - lineOpacity) * Math.min(1, delta * 5);
         sphereOpacity +=
             (sphereTargetOpacity - sphereOpacity) * Math.min(1, delta * 5);
-        scene.backgroundIntensity = lineOpacity * 2;
+        scene.backgroundIntensity = 0.06 + lineOpacity * 1.1;
         if (controls && mesh && body) {
             mesh.getWorldPosition(spot);
             if (flight.current < 1) {
@@ -283,7 +301,7 @@
     });
 
     $effect(() => {
-        if (controls) controls.enabled = interactable;
+        if (controls) controls.enabled = interactable && !flying;
     });
 </script>
 
@@ -297,7 +315,7 @@
         bind:ref={controls}
         enableDamping
         dampingFactor={0.08}
-        zoomSpeed={10}
+        zoomSpeed={3}
         minDistance={0.01}
         maxDistance={6000}
     />
@@ -308,16 +326,27 @@
 <!-- Fasil mesh-->
 <T.Mesh oncreate={(mesh) => (meshes[star.id] = mesh)}>
     <T.SphereGeometry args={[FASIL_MESH_RADIUS, 32, 32]} />
-    <T.MeshBasicMaterial color="#ffcc66" />
+    <T.MeshBasicMaterial color="#ffcc66" depthWrite={false} />
 </T.Mesh>
+
+<!--Fasil Flares-->
+<Flare
+    bodyRadius={FASIL_MESH_RADIUS}
+    ratio={45}
+    occluder={(m) => (flareOccluder = m)}
+/>
 
 <!-- Fasil selection sphere -->
 <HTML position={[0, 0, 0]} center zIndexRange={[100, 0]}>
     <button
         class="marker"
-        class:blocked={!interactable}
+        class:blocked={!interactable || sphereOpacity < 0.03}
         onpointerdowncapture={(e) => e.stopPropagation()}
-        onclick={() => flyTo(star.id)}
+        onclick={() => {
+            if (sphereOpacity > 0.03) {
+                flyTo(star.id);
+            }
+        }}
     >
         <span class="name" style:opacity={sphereOpacity}>{star.name[lang]}</span
         >
@@ -344,7 +373,7 @@
     )}
     {@const active = activeBody === body.id}
 
-    {#if body.id !== 3 && body.id !== 2}
+    {#if body.id !== 3 && body.id !== 2 && body.id !== 1}
         <T.Mesh
             position={[pos.x, 0, pos.z]}
             oncreate={(mesh) => (meshes[body.id] = mesh)}
@@ -356,13 +385,20 @@
         <Waddah output={(x) => (meshes[body.id] = x)} waddahPosition={pos} />
     {:else if body.id === 2}
         <Ayn output={(x) => (meshes[body.id] = x)} aynPosition={pos} />
+    {:else if body.id === 1}
+        <Rahhal output={(x) => (meshes[body.id] = x)} rahhalPosition={pos} />
     {/if}
 
     <!--selection sphere-->
-    <HTML position={[pos.x, 0, pos.z]} center zIndexRange={[100, 0]}>
+    <HTML
+        position={[pos.x, 0, pos.z]}
+        center
+        zIndexRange={[100, 0]}
+        occlude={occluders.filter((m) => m !== meshes[body.id])}
+    >
         <button
             class="marker"
-            class:blocked={!interactable}
+            class:blocked={!interactable || sphereOpacity < 0.03}
             class:selected={active}
             onclick={() => {
                 if (!active || lineOpacity > 0.03) {
@@ -372,24 +408,23 @@
             onpointerdowncapture={(e) => e.stopPropagation()}
         >
             {#if body.id !== 3 && body.id !== 2}
-                <span class="ring" style:opacity={active ? sphereOpacity : null}
-                ></span>
+                <span class="ring" style:opacity={sphereOpacity}></span>
             {:else if body.id === 3}
                 <img
                     class="icon"
                     src={waddahIcon}
-                    style:opacity={active ? sphereOpacity : null}
+                    style:opacity={sphereOpacity}
                     alt="Waddah icon"
                 />
             {:else if body.id === 2}
                 <img
                     class="icon"
                     src={aynIcon}
-                    style:opacity={active ? sphereOpacity : null}
+                    style:opacity={sphereOpacity}
                     alt="Ayn icon"
                 />
             {/if}
-            <span class="name" style:opacity={active ? sphereOpacity : null}
+            <span class="name" style:opacity={sphereOpacity}
                 >{body.name[lang]}</span
             >
         </button>
@@ -407,13 +442,15 @@
             opacity={lineOpacity}
             transparent={true}
             dashSize={1}
+            depthWrite={false}
             gapSize={1}
         />
     </T.LineLoop>
 {/each}
 
 <style>
-    .blocked {
+    .marker.blocked,
+    .marker.selected {
         pointer-events: none;
     }
     .marker {
@@ -423,9 +460,6 @@
         padding: 0;
         cursor: pointer;
         pointer-events: auto;
-    }
-    .selected {
-        pointer-events: none;
     }
     .ring {
         display: block;

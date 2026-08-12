@@ -1,4 +1,8 @@
 <script>
+    // todo:
+    // media is now bugged, doesn't work on iOS.
+    // flyTo using the menu on iOS doesn't work.
+
     import { Canvas } from "@threlte/core";
     import { Tween } from "svelte/motion";
     import { cubicInOut } from "svelte/easing";
@@ -743,6 +747,11 @@
     /*global*/
     :global(:root) {
         --sidebar-w: clamp(300px, 25dvw, 480px);
+    }
+    @media (max-width: 640px) {
+        :global(:root) {
+            --sidebar-w: 100dvw;
+        }
     }
     :global(html:lang(ar)) .menu {
         direction: rtl;

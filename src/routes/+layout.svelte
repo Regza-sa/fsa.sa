@@ -11,6 +11,8 @@
 	let { children } = $props();
 </script>
 
+<svelte:window ondragstart={(e) => e.preventDefault()} />
+
 <svelte:head>
 	<!-- <link rel="icon" /> -->
 </svelte:head>
