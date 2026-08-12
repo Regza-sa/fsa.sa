@@ -41,7 +41,7 @@
 </script>
 
 <T.Group
-    position={[aynPosition.x, 0, aynPosition.z]}
+    position={[aynPosition.x, aynPosition.y, aynPosition.z]}
     rotation={[0, 0, AXIAL_TILT]}
 >
     <T.Mesh oncreate={(mesh) => output(mesh)}>

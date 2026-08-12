@@ -13,7 +13,12 @@
         FASIL_MESH_RADIUS,
         auToUnits,
         bodyRadiusUnits,
+        rad,
+        smaEccentricityCalc,
+        orbitAngle,
+        orbitPoint,
     } from "$lib/census";
+    import OrbitLines from "$lib/OrbitLines.svelte";
     import Waddah from "$lib/planets/waddah.svelte";
     import Ayn from "$lib/planets/ayn.svelte";
     import Rahhal from "$lib/planets/rahhal.svelte";
@@ -107,27 +112,9 @@
         return points;
     }
 
-    function smaEccentricityCalc(a, e, theta) {
-        let sminora = a * Math.sqrt(1 - e * e);
-        let focal = a * e;
-        let x = a * Math.cos(theta) - focal;
-        let z = sminora * Math.sin(theta);
-
-        return { x, z };
-    }
-
-    function orbitAngle(planet) {
-        const speed = (Math.PI * 2) / (planet.orbitalPeriod * 86400);
-        return rad(planet.phase) + elapsed * speed;
-    }
-
     export function flyToPage(bodyId) {
         if (!bodyId) return;
         flyTo(bodyId);
-    }
-
-    function rad(deg) {
-        return (deg * Math.PI) / 180;
     }
 
     function soiUnits(body) {
@@ -397,17 +384,13 @@
 
 <!-- planets -->
 {#each planets as body}
-    {@const angle = orbitAngle(body)}
-    {@const pos = smaEccentricityCalc(
-        auToUnits(body.semiMajorAxis),
-        body.eccentricity,
-        angle,
-    )}
+    {@const angle = orbitAngle(body, elapsed)}
+    {@const pos = orbitPoint(body, angle)}
     {@const active = activeBody === body.id}
 
     {#if body.id !== 3 && body.id !== 2 && body.id !== 1}
         <T.Mesh
-            position={[pos.x, 0, pos.z]}
+            position={[pos.x, pos.y, pos.z]}
             oncreate={(mesh) => (meshes[body.id] = mesh)}
         >
             <T.SphereGeometry args={[bodyRadiusUnits(body), 64, 32]} />
@@ -423,7 +406,7 @@
 
     <!--selection sphere-->
     <HTML
-        position={[pos.x, 0, pos.z]}
+        position={[pos.x, pos.y, pos.z]}
         center
         zIndexRange={[100, 0]}
         occlude={occluders.filter((m) => m !== meshes[body.id])}
@@ -471,21 +454,7 @@
 {/each}
 
 <!--orbit lines-->
-{#each planetsWithGeometry as planetData}
-    <T.LineLoop
-        geometry={planetData.geometry}
-        oncreate={(line) => line.computeLineDistances()}
-    >
-        <T.LineDashedMaterial
-            color={planetData.orbitLineColor ?? "#999999"}
-            opacity={lineOpacity}
-            transparent={true}
-            dashSize={1}
-            depthWrite={false}
-            gapSize={1}
-        />
-    </T.LineLoop>
-{/each}
+<OrbitLines opacity={lineOpacity * 1.8} {elapsed} />
 
 <style>
     .marker.blocked,

@@ -215,11 +215,11 @@
     <div class="menu">
         <div
             class="effect1"
-            style:transform="translateX({sidebarTween.current * slide}%)"
+            style:transform="translateX({effect1Tween.current * slide}%)"
         ></div>
         <div
             class="effect2"
-            style:transform="translateX({sidebarTween.current * slide}%)"
+            style:transform="translateX({effect2Tween.current * slide}%)"
         ></div>
         <div
             class="sidebar"

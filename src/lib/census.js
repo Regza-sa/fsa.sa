@@ -27,7 +27,7 @@ export const planets = [
         orbitalPeriod: 806,
         phase: 180,
         T_eq: 236,
-        orbitLineColor: "#FFFFFF"
+        orbitLineColor: "#3271a8",
     },
     {
         id: 3,
@@ -90,4 +90,26 @@ export function bodyRadiusUnits(body) {
     } else {
         return body.earthRadius * KM_PER_EARTH_RADIUS * UNITS_PER_KM;
     }
+}
+
+export function rad(deg) {
+    return (deg * Math.PI) / 180;
+}
+
+export function smaEccentricityCalc(a, e, theta) {
+    const sminora = a * Math.sqrt(1 - e * e);
+    const focal = a * e;
+    return { x: a * Math.cos(theta) - focal, z: sminora * Math.sin(theta) };
+}
+
+export function orbitAngle(planet, elapsed) {
+    const speed = (Math.PI * 2) / (planet.orbitalPeriod * 86400);
+    return rad(planet.phase) + elapsed * speed;
+}
+
+export function orbitPoint(planet, theta) {
+    const a = auToUnits(planet.semiMajorAxis);
+    const { x, z } = smaEccentricityCalc(a, planet.eccentricity, theta);
+    const i = rad(planet.orbitalInclination ?? 0);
+    return { x, y: -z * Math.sin(i), z: z * Math.cos(i) };
 }

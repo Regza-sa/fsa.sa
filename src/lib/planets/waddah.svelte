@@ -86,7 +86,7 @@
 </script>
 
 <T.Group
-    position={[waddahPosition.x, 0, waddahPosition.z]}
+    position={[waddahPosition.x, waddahPosition.y, waddahPosition.z]}
     rotation={[0, 0, AXIAL_TILT]}
 >
     <T.Mesh oncreate={(mesh) => output(mesh)}>

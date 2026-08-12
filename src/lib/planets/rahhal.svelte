@@ -102,7 +102,7 @@
 </script>
 
 <T.Group
-    position={[rahhalPosition.x, 0, rahhalPosition.z]}
+    position={[rahhalPosition.x, rahhalPosition.y, rahhalPosition.z]}
     rotation={[0, 0, AXIAL_TILT]}
 >
     <T.Mesh oncreate={(mesh) => output(mesh)}>
