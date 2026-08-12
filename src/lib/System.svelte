@@ -61,8 +61,8 @@
     let distLogFrom = 0;
     let distLogTo = 0;
 
-    async function flyTo(id) {
-        if (!interactable || id === activeBody) {
+    async function flyTo(id, force = false) {
+        if ((!interactable && !force) || id === activeBody) {
             return;
         }
 
@@ -113,8 +113,8 @@
     }
 
     export function flyToPage(bodyId) {
-        if (!bodyId) return;
-        flyTo(bodyId);
+        if (bodyId == null) return;
+        flyTo(bodyId, true);
     }
 
     function soiUnits(body) {
