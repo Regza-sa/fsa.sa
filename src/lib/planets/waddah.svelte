@@ -1,92 +1,30 @@
 <script>
     import { planets, bodyRadiusUnits } from "$lib/census";
-    import { T, useThrelte } from "@threlte/core";
-    import {
-        BufferGeometry,
-        Vector3,
-        TextureLoader,
-        EquirectangularReflectionMapping,
-        SRGBColorSpace,
-        AdditiveBlending,
-        Color,
-        Mesh,
-        DoubleSide,
-    } from "three";
+    import { T } from "@threlte/core";
+    import { TextureLoader, SRGBColorSpace, Vector3, DoubleSide } from "three";
+    import Atmosphere from "./Atmosphere.svelte";
 
     let { output, waddahPosition } = $props();
 
-    const { scene } = useThrelte();
     const WADDAH = planets.find((p) => p.id === 3);
     const AXIAL_TILT = (WADDAH.axialTilt * Math.PI) / 180;
-    const ATMO_SCALE = 1.04;
-    const ATMO_OFFSET = 1.01;
-    const ATMO_COLOR = "#d6eeff";
     const ATMO_RP = bodyRadiusUnits(WADDAH);
-    const ATMO_OF = ATMO_RP * ATMO_OFFSET;
-    const ATMO_RA = ATMO_RP * ATMO_SCALE;
+    const ATMO_COLOR = "#d1d0e7";
     const RING_INNER = ATMO_RP * 2.207;
     const RING_OUTER = ATMO_RP * 3.273;
 
-    const ATMO_VERT = `
-        varying vec3 vPosW;
-        varying vec3 vCenter;
-        void main() {
-            vec4 world = modelMatrix * vec4(position, 1.0);
-            vPosW = world.xyz;
-            vCenter = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-            gl_Position = projectionMatrix * viewMatrix * world;
-        }
-    `;
-
-    const ATMO_FRAG = `
-        uniform vec3 uColor;
-        uniform vec3 uStarPos;
-        uniform float uRp;
-        uniform float uRa;
-        uniform float uDensity;
-        uniform float uIntensity;
-        varying vec3 vPosW;
-        varying vec3 vCenter;
-        void main() {
-            vec3 ro = cameraPosition;
-            vec3 rd = normalize(vPosW - ro);
-            vec3 oc = vCenter - ro;
-            float tca = dot(oc, rd);
-            float b2 = dot(oc, oc) - tca * tca;
-            float ra2 = uRa * uRa;
-            if (b2 >= ra2) discard;
-            float rp2 = uRp * uRp;
-            float outer = sqrt(ra2 - b2);
-            float L = (b2 < rp2) ? (outer - sqrt(rp2 - b2)) : (2.0 * outer);
-            float alpha = 1.0 - exp(-(L / uRp) * uDensity);
-            vec3 near = ro + rd * tca;
-            vec3 nrm = normalize(near - vCenter);
-            float lit = smoothstep(-0.30, 0.30, dot(nrm, normalize(uStarPos - near)));
-            gl_FragColor = vec4(uColor * uIntensity * alpha * lit, alpha * lit);
-        }
-    `;
-
-    const ATMO_UNIFORMS = {
-        uColor: { value: new Color(0.6396, 0.6304, 0.8008) },
-        uStarPos: { value: new Vector3(0, 0, 0) },
-        uRp: { value: ATMO_RP },
-        uRa: { value: ATMO_RA },
-        uDensity: { value: 1.5 },
-        uIntensity: { value: 1.15 },
-    };
-
     const RING_VERT = `
         varying vec2 vUv;
-        varying vec3 vPosW;
-        varying vec3 vNormalW;
-        varying vec3 vCenter;
+        varying vec3 vPosV;
+        varying vec3 vNormalV;
+        varying vec3 vCenterV;
         void main() {
             vUv = uv;
-            vec4 world = modelMatrix * vec4(position, 1.0);
-            vPosW = world.xyz;
-            vNormalW = normalize(mat3(modelMatrix) * normal);
-            vCenter = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-            gl_Position = projectionMatrix * viewMatrix * world;
+            vec4 viewPos = modelViewMatrix * vec4(position, 1.0);
+            vPosV = viewPos.xyz;
+            vNormalV = normalize(normalMatrix * normal);
+            vCenterV = (modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+            gl_Position = projectionMatrix * viewPos;
         }
     `;
 
@@ -96,16 +34,17 @@
         uniform float uPlanetRadius;
         uniform float uOpacity;
         varying vec2 vUv;
-        varying vec3 vPosW;
-        varying vec3 vNormalW;
-        varying vec3 vCenter;
+        varying vec3 vPosV;
+        varying vec3 vNormalV;
+        varying vec3 vCenterV;
         void main() {
             vec4 tex = texture2D(uMap, vUv);
 
-            vec3 L = normalize(uStarPos - vPosW);
-            float lit = abs(dot(normalize(vNormalW), L));
+            vec3 starV = (viewMatrix * vec4(uStarPos, 1.0)).xyz;
+            vec3 L = normalize(starV - vPosV);
+            float lit = abs(dot(normalize(vNormalV), L));
 
-            vec3 oc = vCenter - vPosW;
+            vec3 oc = vCenterV - vPosV;
             float tca = dot(oc, L);
             float b2 = dot(oc, oc) - tca * tca;
             float shadow = 1.0;
@@ -128,12 +67,9 @@
     let waddahMap = $state(null);
     let waddahMat = $state(null);
 
-    let ringMap = $state(null);
-
     new TextureLoader().load("/textures/waddah_ring.png", (tex) => {
         tex.colorSpace = SRGBColorSpace;
         RING_UNIFORMS.uMap.value = tex;
-        ringMap = tex;
     });
 
     new TextureLoader().load("/textures/waddah_color.jpg", (tex) => {
@@ -154,7 +90,7 @@
     rotation={[0, 0, AXIAL_TILT]}
 >
     <T.Mesh oncreate={(mesh) => output(mesh)}>
-        <T.SphereGeometry args={[bodyRadiusUnits(WADDAH), 64, 32]} />
+        <T.SphereGeometry args={[ATMO_RP, 64, 32]} />
         <T.MeshStandardMaterial
             oncreate={(mat) => {
                 waddahMat = mat;
@@ -165,32 +101,15 @@
             metalness={0}
         />
     </T.Mesh>
-    <!--atmosphere ball-->
-    <T.Mesh>
-        <T.SphereGeometry args={[ATMO_OF, 64, 32]} />
-        <T.MeshStandardMaterial
-            color={ATMO_UNIFORMS.uColor}
-            transparent={true}
-            opacity={0.2}
-            depthWrite={false}
-        />
-    </T.Mesh>
-    <!--atmosphere effect-->
-    <T.Mesh>
-        <T.SphereGeometry args={[ATMO_RA, 64, 32]} />
-        <T.ShaderMaterial
-            args={[
-                {
-                    uniforms: ATMO_UNIFORMS,
-                    vertexShader: ATMO_VERT,
-                    fragmentShader: ATMO_FRAG,
-                    transparent: true,
-                    depthWrite: false,
-                    blending: AdditiveBlending,
-                },
-            ]}
-        />
-    </T.Mesh>
+
+    <!--atmosphere-->
+    <Atmosphere
+        planetRadius={ATMO_RP}
+        color={ATMO_COLOR}
+        scale={1.04}
+        shellOpacity={0.2}
+    />
+
     <!--rings-->
     <T.Mesh rotation={[-Math.PI / 2, 0, 0]}>
         <T.RingGeometry

@@ -2,8 +2,19 @@ import adapter from '@sveltejs/adapter-node';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
+const fullReloadOnly = {
+	name: 'full-reload-only',
+	enforce: 'pre',
+	hotUpdate() {
+		if (this.environment.name !== 'client') return;
+		this.environment.hot.send({ type: 'full-reload' });
+		return [];
+	}
+};
+
 export default defineConfig({
 	plugins: [
+		fullReloadOnly,
 		sveltekit({
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.

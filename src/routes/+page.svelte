@@ -7,9 +7,13 @@
     import { aynImage, waddahImage } from "$lib/assets/images";
 
     import System from "$lib/System.svelte";
+
     import xIcon from "$lib/assets/icons/x.svg?raw";
     import infoIcon from "$lib/assets/icons/info.svg?raw";
     import gearIcon from "$lib/assets/icons/gear.svg?raw";
+    import githubIcon from "$lib/assets/icons/github.svg?raw";
+    import arrowLeftIcon from "$lib/assets/icons/arrow-left.svg?raw";
+
     import { redirect } from "@sveltejs/kit";
     import { RGBADepthPacking } from "three";
     /** @type {import('./$types').PageProps} */
@@ -23,10 +27,12 @@
     let menuExists = $state(false);
     let menuDebounce = $state(false);
     let menuWasOpen = $state(false);
+    let settingsOpen = $state(false);
 
     let system;
 
     const narrow = new MediaQuery("max-width: 640px");
+    const slide = $derived(data.language === "ar" ? -1 : 1);
 
     const spin = new Tween(0, { duration: 400, easing: cubicInOut });
 
@@ -51,7 +57,7 @@
 
     const infoText = {
         en: "A portfolio site integrated as a fantasy solar system. Each planet serves as a section of a normal portfolio website, click on a body to travel to it.",
-        ar: "التتتتتت",
+        ar: "موقعي الشخصي على شكل نظام شمسي خيالي. كل كوكب هو قسم من الموقع. اضغط على أي جرم للانتقال إليه.",
     };
     const nameText = {
         en: "Faisal Alshehri",
@@ -59,16 +65,20 @@
     };
     const hoverInfoText = {
         en: "Info",
-        ar: "ال",
+        ar: "معلومات",
     };
 
     const hoverMenuTextOpen = {
         en: "Menu",
-        ar: "ألا",
+        ar: "القائمة",
     };
     const hoverMenuTextClose = {
         en: "Close",
-        ar: "ألبل",
+        ar: "إغلاق",
+    };
+    const hoverSettingsText = {
+        en: "Settings",
+        ar: "الإعدادات",
     };
 
     const menuItems = [
@@ -76,7 +86,7 @@
             id: 1,
             en: "Services",
             ar: "الخدمات",
-            planetName: "Rahhal",
+            planetName: { en: "Rahhal", ar: "الرحال" },
             color: "rgb(179, 110, 46)",
         },
         {
@@ -84,7 +94,7 @@
             en: "Contact",
             ar: "تواصل",
             image: aynImage,
-            planetName: "Ayn",
+            planetName: { en: "Ayn", ar: "العين" },
             color: "rgb(50, 113, 168)",
         },
         {
@@ -92,22 +102,45 @@
             en: "Projects",
             ar: "المشاريع",
             image: waddahImage,
-            planetName: "Waddah",
+            planetName: { en: "Waddah", ar: "وضاح" },
             color: "rgb(217, 217, 217)",
         },
         {
             id: 4,
             en: "About",
             ar: "نبذة",
-            planetName: "Nafis",
+            planetName: { en: "Nafis", ar: "النفيس" },
             color: "rgb(156, 68, 25)",
         },
     ];
 
     const menuPadding = {
         en: "10px 30px",
-        ar: "12px 35px",
+        ar: "12px 50px",
     };
+
+    const settings = [
+        {
+            id: 0,
+            en: "Audio",
+            ar: "الصوت",
+            options: [
+                { value: "on", en: "On", ar: "تشغيل" },
+                { value: "off", en: "Off", ar: "إيقاف" },
+            ],
+        },
+        {
+            id: 1,
+            en: "Language",
+            ar: "اللغة",
+            options: [
+                { value: "en", en: "English", ar: "English" },
+                { value: "ar", en: "العربية", ar: "العربية" },
+                { value: "auto", en: "Auto", ar: "تلقائي" },
+            ],
+        },
+    ];
+    let chosen = $state({ 0: "on", 1: "auto" });
 
     async function animateButton(bool) {
         if (bool) {
@@ -177,53 +210,131 @@
     <div class="menu">
         <div
             class="effect1"
-            style:transform="translateX({effect1Tween.current}%)"
+            style:transform="translateX({sidebarTween.current * slide}%)"
         ></div>
         <div
             class="effect2"
-            style:transform="translateX({effect2Tween.current}%)"
+            style:transform="translateX({sidebarTween.current * slide}%)"
         ></div>
         <div
             class="sidebar"
-            style:transform="translateX({sidebarTween.current}%)"
+            style:transform="translateX({sidebarTween.current * slide}%)"
         >
-            <div class="emptyspace1"></div>
-            {#each menuItems as menuItem (menuItem.id)}
-                <button
-                    class="menuItemHolder"
-                    style:margin={menuPadding[data.language]}
-                    onclick={() => {
-                        menuDebounce = true;
-                        closeMenu();
-                        system.flyToPage(menuItem.id);
-                    }}
-                >
-                    <h3 class="planetName" style:color={menuItem.color}>
-                        {menuItem.planetName}
-                    </h3>
-                    <h3 class="planetNum">{"0" + menuItem.id}</h3>
-                    <h1
-                        class="textMenu"
-                        class:hasFill={menuItem.image}
-                        style:--fill={menuItem.image
-                            ? `url(${menuItem.image})`
-                            : null}
-                    >
-                        {menuItem[data.language]}
+            <div class="pages">
+                <div class="page" class:hidden={settingsOpen}>
+                    <div class="emptyspace1"></div>
+                    {#each menuItems as menuItem (menuItem.id)}
+                        <button
+                            class="menuItemHolder"
+                            style:margin={menuPadding[data.language]}
+                            onclick={() => {
+                                menuDebounce = true;
+                                closeMenu();
+                                system.flyToPage(menuItem.id);
+                            }}
+                        >
+                            <h3 class="planetName" style:color={menuItem.color}>
+                                {menuItem.planetName[data.language]}
+                            </h3>
+                            <h3 class="planetNum">{"0" + menuItem.id}</h3>
+                            <h1
+                                class="textMenu"
+                                class:hasFill={menuItem.image}
+                                style:--fill={menuItem.image
+                                    ? `url(${menuItem.image})`
+                                    : null}
+                            >
+                                {menuItem[data.language]}
+                            </h1>
+                        </button>
+                    {/each}
+                    <div class="bottomarea">
+                        <div class="buttonsettingsarea">
+                            <button
+                                class="iconButton settingsButton"
+                                onclick={() => {
+                                    settingsOpen = !settingsOpen;
+                                }}
+                                ><span class="settingsIcon"
+                                    >{@html gearIcon}</span
+                                ></button
+                            >
+                            <span class="settingsLabel"
+                                >{hoverSettingsText[data.language]}</span
+                            >
+                        </div>
+                        <div class="line"></div>
+                        <div class="socialsline">
+                            <button
+                                class="iconButton githubButton"
+                                onclick={() => {
+                                    window.open(
+                                        "https://github.com/Regza-sa/fsa.sa",
+                                        "_blank",
+                                    );
+                                }}
+                                ><span class="githubIcon"
+                                    >{@html githubIcon}</span
+                                ></button
+                            >
+                        </div>
+                    </div>
+                </div>
+                <div class="page" class:hidden={!settingsOpen}>
+                    <div class="emptyspace1"></div>
+                    <!-- settings -->
+                    <h1 class="settingsTitle">
+                        {hoverSettingsText[data.language]}
                     </h1>
-                </button>
-            {/each}
+                    <div class="settingsList">
+                        {#each settings as setting (setting.id)}
+                            <div class="settingRow">
+                                <div class="settingLabel">
+                                    <span class="settingNum"
+                                        >{"0" + (setting.id + 1)}</span
+                                    >
+                                    {setting[data.language]}
+                                </div>
+                                <div class="settingOptions">
+                                    {#each setting.options as option (option.value)}
+                                        <button
+                                            class="settingOption"
+                                            class:active={chosen[setting.id] ===
+                                                option.value}
+                                            onclick={() =>
+                                                (chosen[setting.id] =
+                                                    option.value)}
+                                        >
+                                            {option[data.language]}
+                                        </button>
+                                    {/each}
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 {/if}
 
 <div class="buttonlayer" class:open={menuOpen}>
+    <button
+        class="iconButton backButton"
+        aria-label="back"
+        class:hidden={!settingsOpen}
+        onclick={() => {
+            settingsOpen = !settingsOpen;
+        }}
+    >
+        <span class="backIcon" style:opacity>{@html arrowLeftIcon}</span>
+    </button>
     <span class="menuHoverText">
         <span class="labelMenu">{hoverMenuTextOpen[data.language]}</span>
         <span class="labelClose">{hoverMenuTextClose[data.language]}</span>
     </span>
     <button
-        class="menuButton"
+        class="iconButton menuButton"
         aria-label="settings"
         onclick={async () => {
             if (menuDebounce) return;
@@ -253,7 +364,7 @@
             <div class="toprow">
                 <h1 class="title" style:opacity>fsa.sa</h1>
                 <button
-                    class="info"
+                    class="iconButton info"
                     onclick={() => {
                         if (infotextopacity == 0) {
                             infotextopacity = 1;
@@ -282,7 +393,141 @@
 </div>
 
 <style>
+    /*global-top*/
+    .iconButton {
+        padding: 0px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: none;
+        border: none;
+        width: 32px;
+        height: 32px;
+        pointer-events: auto;
+        cursor: pointer;
+    }
+    .iconButton :global(svg) {
+        display: block;
+        width: 32px;
+        height: 32px;
+        color: white;
+    }
     /*menu*/
+    /*settings*/
+    .settingsList {
+        display: flex;
+        flex-direction: column;
+    }
+    .settingRow {
+        padding: 18px 36px;
+    }
+    .settingRow + .settingRow {
+        border-top: 1px solid rgba(255, 255, 255, 0.152);
+    }
+    .settingLabel {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        font-family: "Geist Variable", sans-serif;
+        font-size: 0.7rem;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+        color: rgb(128, 128, 128);
+        margin-bottom: 12px;
+    }
+    .settingNum {
+        color: rgb(255, 233, 136);
+        letter-spacing: 0.2em;
+    }
+    .settingOptions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .settingOption {
+        background: none;
+        border: 1px solid rgba(255, 255, 255, 0.152);
+        border-radius: 2px;
+        padding: 5px 12px;
+        color: rgb(128, 128, 128);
+        font-family: "Newsreader Variable", serif;
+        font-size: 0.9rem;
+        letter-spacing: 0.12em;
+        cursor: pointer;
+        pointer-events: auto;
+        transition:
+            color 0.2s ease-in-out,
+            border-color 0.2s ease-in-out;
+    }
+    .settingOption:hover {
+        color: rgb(224, 224, 224);
+        border-color: rgba(255, 255, 255, 0.34);
+    }
+    .settingOption.active {
+        color: rgb(12, 12, 12);
+        background: rgb(255, 233, 136);
+        border-color: rgb(255, 233, 136);
+    }
+    .settingsTitle {
+        margin: 10px 36px;
+        letter-spacing: 0.1em;
+        width: fit-content;
+        font-size: 3.5rem;
+        color: rgb(255, 255, 255);
+        transition: color 0.2s ease-in-out;
+    }
+    :global(html:lang(ar)) .settingsTitle {
+        margin: 12px 36px;
+    }
+    /*sidebar*/
+    .pages {
+        display: grid;
+    }
+    .page {
+        grid-area: 1 / 1;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        transition: opacity 0.3s ease-in-out;
+    }
+    .page.hidden {
+        opacity: 0;
+        visibility: hidden;
+        transition:
+            opacity 0.3s ease-in-out,
+            visibility 0s 0.3s;
+    }
+    .settingsLabel {
+        opacity: 0;
+        color: white;
+        font-family: "Newsreader Variable", serif;
+        transform: translateY(2px);
+        letter-spacing: 0.1em;
+        transition: opacity 0.2s ease-in-out;
+    }
+    .buttonsettingsarea:has(.settingsButton:hover) .settingsLabel {
+        opacity: 1;
+    }
+    .buttonsettingsarea {
+        display: flex;
+        align-items: center;
+    }
+    .line {
+        position: relative;
+        background: rgba(255, 255, 255, 0.152);
+        width: 100%;
+        height: 2px;
+    }
+    .bottomarea {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        position: absolute;
+        padding: 0px 10px;
+        padding-bottom: 10px;
+        bottom: 0;
+        inset-inline: 0;
+    }
     .menu {
         z-index: 200;
         display: flex;
@@ -310,7 +555,7 @@
         top: 0;
         bottom: 0;
         inset-inline-end: 0;
-        width: clamp(300px, 25%, 480px);
+        width: var(--sidebar-w);
     }
     .sidebar {
         display: flex;
@@ -371,12 +616,26 @@
         .sidebar,
         .effect1,
         .effect2 {
-            width: 100%;
+            width: var(--sidebar-w);
         }
     }
 
     /*buttonlayer*/
+    .backButton {
+        margin-inline-end: auto;
+        transition: opacity 0.3s ease-in-out;
+    }
+    .backButton.hidden {
+        opacity: 0;
+        visibility: hidden;
+        transition:
+            opacity 0.3s ease-in-out,
+            visibility 0s 0.3s;
+    }
     .buttonlayer {
+        width: var(--sidebar-w);
+        justify-content: flex-end;
+        box-sizing: border-box;
         position: fixed;
         top: 0;
         inset-inline-end: 0;
@@ -388,22 +647,8 @@
         padding: 30px 20px 0px;
         pointer-events: none;
     }
-    .menuicon :global(svg) {
-        display: block;
-        width: 32px;
-        height: 32px;
-        color: white;
-    }
     .menuButton {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: none;
-        border: none;
-        width: 32px;
-        height: 32px;
-        pointer-events: auto;
-        cursor: pointer;
+        padding: 0px;
     }
     :global(html:lang(ar)) .buttonlayer {
         direction: rtl;
@@ -429,12 +674,6 @@
         align-items: center;
     }
     .title {
-        color: white;
-    }
-    .infoicon :global(svg) {
-        display: block;
-        width: 32px;
-        height: 32px;
         color: white;
     }
     .menuHoverText {
@@ -486,18 +725,6 @@
         letter-spacing: normal;
         font-weight: 400;
     }
-    .info {
-        padding: 0px 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: none;
-        border: none;
-        width: 32px;
-        height: 32px;
-        pointer-events: auto;
-        cursor: pointer;
-    }
     :global(html:lang(ar)) .info {
         padding: 0px 30px;
     }
@@ -514,6 +741,19 @@
     }
 
     /*global*/
+    :global(:root) {
+        --sidebar-w: clamp(300px, 25dvw, 480px);
+    }
+    :global(html:lang(ar)) .menu {
+        direction: rtl;
+    }
+    :global(html:lang(ar)) .menuHoverText,
+    :global(html:lang(ar)) .hoverinfotext,
+    :global(html:lang(ar)) .settingsLabel {
+        font-family: "Readex Pro Variable", sans-serif;
+        letter-spacing: normal;
+        font-weight: 400;
+    }
     h1 {
         margin: 0px;
         font-family: "Newsreader Variable", monospace;

@@ -5,6 +5,7 @@
         aynAudio,
         nafisAudio,
         rahhalAudio,
+        fasilAudio,
     } from "./assets/planetaudio";
     import {
         planets,
@@ -143,13 +144,14 @@
     // audio system
 
     const audioSrc = {
+        0: fasilAudio,
         1: rahhalAudio,
         2: aynAudio,
         3: waddahAudio,
         4: nafisAudio,
     };
-    const audioVolume = { 1: 0.2, 2: 0.4, 3: 0.15, 4: 0.4 };
-    const audioSeek = { 1: 0.5, 2: 2, 3: 0.5, 4: 0.5 };
+    const audioVolume = { 0: 0.2, 1: 0.2, 2: 0.4, 3: 0.15, 4: 0.4 };
+    const audioSeek = { 0: 0.5, 1: 0.5, 2: 2, 3: 0.5, 4: 0.5 };
 
     let audioEls = $state([]);
     let playing = $state(-1); // bodyid
@@ -161,8 +163,8 @@
     function audioInit() {
         called = true;
         ctx = new AudioContext();
-        for (let i = 0; i < planets.length; i++) {
-            const id = planets[i].id;
+        for (let i = 0; i < bodies.length; i++) {
+            const id = bodies[i].id;
             const audio = audioEls[id];
             audio.loop = true;
             audio.volume = 1;
@@ -174,6 +176,10 @@
             gain.connect(ctx.destination);
             gains[id] = gain;
         }
+    }
+
+    function unlockAudio() {
+        if (ctx && ctx.state === "suspended") ctx.resume();
     }
 
     function seek(seconds, audio) {
@@ -201,7 +207,8 @@
     useTask((delta) => {
         elapsed += delta;
 
-        if (Object.keys(audioEls).length == planets.length && !called) {
+        if (Object.keys(audioEls).length == bodies.length && !called) {
+            window.addEventListener("pointerdown", unlockAudio, { once: true });
             audioInit();
         }
 
@@ -224,13 +231,15 @@
                 playAudio(activeBody);
             }
 
-            for (let i = 0; i < planets.length; i++) {
-                const id = planets[i].id;
-                if (id != playing) {
-                    let gain = gains[planets[i].id];
-                    gain.gain.value +=
-                        (targetVolume - gain.gain.value) *
-                        Math.min(1, delta * 3);
+            if (called) {
+                for (let i = 0; i < bodies.length; i++) {
+                    const id = bodies[i].id;
+                    if (id != playing) {
+                        let gain = gains[id];
+                        gain.gain.value +=
+                            (targetVolume - gain.gain.value) *
+                            Math.min(1, delta * 3);
+                    }
                 }
             }
         } else {
@@ -240,8 +249,8 @@
             }
             playing = -1;
             if (called) {
-                for (let i = 0; i < planets.length; i++) {
-                    let gain = gains[planets[i].id];
+                for (let i = 0; i < bodies.length; i++) {
+                    let gain = gains[bodies[i].id];
                     gain.gain.value +=
                         (targetVolume - gain.gain.value) *
                         Math.min(1, delta * 3);
@@ -302,6 +311,29 @@
     <T.MeshBasicMaterial color="#ffcc66" />
 </T.Mesh>
 
+<!-- Fasil selection sphere -->
+<HTML position={[0, 0, 0]} center zIndexRange={[100, 0]}>
+    <button
+        class="marker"
+        class:blocked={!interactable}
+        onpointerdowncapture={(e) => e.stopPropagation()}
+        onclick={() => flyTo(star.id)}
+    >
+        <span class="name" style:opacity={sphereOpacity}>{star.name[lang]}</span
+        >
+    </button>
+</HTML>
+
+<!--audio-->
+{#each bodies as body (body.id)}
+    <audio
+        bind:this={audioEls[body.id]}
+        src={audioSrc[body.id]}
+        preload="none"
+        loop
+    ></audio>
+{/each}
+
 <!-- planets -->
 {#each planets as body}
     {@const angle = orbitAngle(body)}
@@ -311,13 +343,6 @@
         angle,
     )}
     {@const active = activeBody === body.id}
-
-    <audio
-        bind:this={audioEls[body.id]}
-        src={audioSrc[body.id]}
-        preload="none"
-        loop
-    ></audio>
 
     {#if body.id !== 3 && body.id !== 2}
         <T.Mesh
