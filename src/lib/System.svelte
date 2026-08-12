@@ -142,6 +142,12 @@
 
     let lineOpacity = $state(0.5);
     let sphereOpacity = $state(1);
+    let fasilLabelGap = $state(16);
+    const FLARE_RATIO = 45;
+    const FLARE_FADE_START = 45;
+    const FLARE_FADE_END = 12;
+    const FLARE_GLOW = 0.25;
+
     let UIStateCalled = $state(false);
 
     const SUNLIGHT_AT_1AU = 2;
@@ -233,6 +239,27 @@
                 camera.current.near = want;
                 camera.current.updateProjectionMatrix();
             }
+
+            const dFasil = Math.max(camera.current.position.length(), 1e-6);
+            const tanHalf = Math.tan((camera.current.fov * Math.PI) / 360);
+            const halfH = window.innerHeight / 2;
+            const starPx = (FASIL_MESH_RADIUS / dFasil / tanHalf) * halfH;
+
+            const t = Math.min(
+                1,
+                Math.max(
+                    0,
+                    (dFasil - FLARE_FADE_END) /
+                        (FLARE_FADE_START - FLARE_FADE_END),
+                ),
+            );
+            const glowPx =
+                starPx * FLARE_RATIO * FLARE_GLOW * (t * t * (3 - 2 * t));
+
+            fasilLabelGap = Math.min(
+                Math.max(starPx, glowPx) + 12,
+                halfH * 0.4,
+            );
         }
 
         if (controls && controls.getDistance() < soiUnits(body)) {
@@ -332,7 +359,9 @@
 <!--Fasil Flares-->
 <Flare
     bodyRadius={FASIL_MESH_RADIUS}
-    ratio={45}
+    ratio={FLARE_RATIO}
+    fadeStart={FLARE_FADE_START}
+    fadeEnd={FLARE_FADE_END}
     occluder={(m) => (flareOccluder = m)}
 />
 
@@ -348,7 +377,10 @@
             }
         }}
     >
-        <span class="name" style:opacity={sphereOpacity}>{star.name[lang]}</span
+        <span
+            class="name"
+            style:inset-inline-start="{fasilLabelGap}px"
+            style:opacity={sphereOpacity}>{star.name[lang]}</span
         >
     </button>
 </HTML>

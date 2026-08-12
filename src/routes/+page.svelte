@@ -8,7 +8,7 @@
     import { cubicInOut } from "svelte/easing";
     import { MediaQuery } from "svelte/reactivity";
 
-    import { aynImage, waddahImage } from "$lib/assets/images";
+    import { aynImage, waddahImage, rahhalImage } from "$lib/assets/images";
 
     import System from "$lib/System.svelte";
 
@@ -90,8 +90,9 @@
             id: 1,
             en: "Services",
             ar: "الخدمات",
+            image: rahhalImage,
             planetName: { en: "Rahhal", ar: "الرحال" },
-            color: "rgb(179, 110, 46)",
+            color: "rgb(166, 147, 106)",
         },
         {
             id: 2,
