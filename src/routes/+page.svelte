@@ -1,9 +1,11 @@
 <script>
     import { Canvas } from "@threlte/core";
-    import { untrack } from "svelte";
+    import { untrack, onMount } from "svelte";
     import { Tween } from "svelte/motion";
     import { cubicInOut } from "svelte/easing";
     import { MediaQuery } from "svelte/reactivity";
+    import { preloadAll } from "$lib/preload";
+    import Loader from "$lib/loader.svelte";
 
     import {
         aynImage,
@@ -24,6 +26,27 @@
     import { RGBADepthPacking } from "three";
     /** @type {import('./$types').PageProps} */
 
+    let progress = $state(0);
+    let sceneMounted = $state(false);
+    let loaderGone = $state(false);
+    const loaderFade = new Tween(1, { duration: 700, easing: cubicInOut });
+
+    function nextFrames(n) {
+        return new Promise((resolve) => {
+            const step = () =>
+                n-- > 0 ? requestAnimationFrame(step) : resolve();
+            requestAnimationFrame(step);
+        });
+    }
+
+    onMount(async () => {
+        await preloadAll((p) => (progress = p));
+        sceneMounted = true;
+        await nextFrames(3);
+        await loaderFade.set(0);
+        loaderGone = true;
+    });
+
     let { data } = $props();
     let activeBody = $state(-1);
     let opacity = $state(1);
@@ -35,7 +58,7 @@
     let menuWasOpen = $state(false);
     let settingsOpen = $state(false);
 
-    let system;
+    let system = $state(null);
 
     const narrow = new MediaQuery("max-width: 640px");
     const slide = $derived(data.language === "ar" ? -1 : 1);
@@ -214,15 +237,23 @@
     }
 </script>
 
-<Canvas>
-    <System
-        bind:this={system}
-        lang={data.language}
-        setUI={(x) => handleUI(x)}
-        interactable={!(menuExists && narrow.current)}
-        audioOn={chosen[0] !== "off"}
-    />
-</Canvas>
+{#if sceneMounted}
+    <Canvas>
+        <System
+            bind:this={system}
+            lang={data.language}
+            setUI={(x) => handleUI(x)}
+            interactable={!(menuExists && narrow.current)}
+            audioOn={chosen[0] !== "off"}
+        />
+    </Canvas>
+{/if}
+
+{#if !loaderGone}
+    <div class="loaderLayer" style:opacity={loaderFade.current}>
+        <Loader {progress} />
+    </div>
+{/if}
 
 {#if menuExists}
     <div class="menu">
@@ -352,7 +383,16 @@
             settingsOpen = !settingsOpen;
         }}
     >
-        <span class="backIcon" style:opacity>{@html arrowLeftIcon}</span>
+        <span
+            class="backIcon"
+            style:opacity={(() => {
+                if (menuOpen) {
+                    return 1;
+                } else {
+                    return 0;
+                }
+            })()}>{@html arrowLeftIcon}</span
+        >
     </button>
     <span class="menuHoverText">
         <span class="labelMenu">{hoverMenuTextOpen[data.language]}</span>
@@ -436,6 +476,14 @@
         width: 32px;
         height: 32px;
         color: white;
+    }
+    /*loader*/
+    .loaderLayer {
+        position: fixed;
+        inset: 0;
+        z-index: 16777274;
+        isolation: isolate;
+        background: #0c0c0c;
     }
     /*menu*/
     /*settings*/

@@ -33,5 +33,6 @@
 		margin: 0;
 		height: 100%;
 		overflow: hidden;
+		background: #0c0c0c;
 	}
 </style>
