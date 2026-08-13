@@ -14,7 +14,9 @@
 <svelte:window ondragstart={(e) => e.preventDefault()} />
 
 <svelte:head>
-	<!-- <link rel="icon" /> -->
+	<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+	<link rel="alternate icon" href="/favicon.ico" sizes="32x32" />
+	<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 </svelte:head>
 
 {@render children()}

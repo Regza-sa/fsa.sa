@@ -1,14 +1,16 @@
 <script>
-    // todo:
-    // media is now bugged, doesn't work on iOS.
-    // flyTo using the menu on iOS doesn't work.
-
     import { Canvas } from "@threlte/core";
+    import { untrack } from "svelte";
     import { Tween } from "svelte/motion";
     import { cubicInOut } from "svelte/easing";
     import { MediaQuery } from "svelte/reactivity";
 
-    import { aynImage, waddahImage, rahhalImage } from "$lib/assets/images";
+    import {
+        aynImage,
+        waddahImage,
+        rahhalImage,
+        nafisImage,
+    } from "$lib/assets/images";
 
     import System from "$lib/System.svelte";
 
@@ -54,10 +56,6 @@
         duration: durationTween,
         easing: tweenType,
     });
-
-    // const wait = (seconds) =>
-    //     new Promise((resolve) => setTimeout(resolve, seconds * 1000));
-    // ^ could be useful later
 
     const infoText = {
         en: "A portfolio site integrated as a fantasy solar system. Each planet serves as a section of a normal portfolio website, click on a body to travel to it.",
@@ -115,7 +113,8 @@
             en: "About",
             ar: "نبذة",
             planetName: { en: "Nafis", ar: "النفيس" },
-            color: "rgb(156, 68, 25)",
+            image: nafisImage,
+            color: "rgb(222, 201, 194)",
         },
     ];
 
@@ -127,6 +126,7 @@
     const settings = [
         {
             id: 0,
+            key: "audio",
             en: "Audio",
             ar: "الصوت",
             options: [
@@ -136,6 +136,7 @@
         },
         {
             id: 1,
+            key: "lang",
             en: "Language",
             ar: "اللغة",
             options: [
@@ -145,7 +146,18 @@
             ],
         },
     ];
-    let chosen = $state({ 0: "on", 1: "auto" });
+    let chosen = $state(
+        untrack(() => ({
+            0: data.audio ? "on" : "off",
+            1: data.langChoice,
+        })),
+    );
+
+    function saveSetting(key, value) {
+        if (value === "auto") document.cookie = `${key}=; path=/; max-age=0`;
+        else
+            document.cookie = `${key}=${value}; path=/; max-age=31536000; SameSite=Lax`;
+    }
 
     async function animateButton(bool) {
         if (bool) {
@@ -208,6 +220,7 @@
         lang={data.language}
         setUI={(x) => handleUI(x)}
         interactable={!(menuExists && narrow.current)}
+        audioOn={chosen[0] !== "off"}
     />
 </Canvas>
 
@@ -306,9 +319,16 @@
                                             class="settingOption"
                                             class:active={chosen[setting.id] ===
                                                 option.value}
-                                            onclick={() =>
-                                                (chosen[setting.id] =
-                                                    option.value)}
+                                            onclick={() => {
+                                                chosen[setting.id] =
+                                                    option.value;
+                                                saveSetting(
+                                                    setting.key,
+                                                    option.value,
+                                                );
+                                                if (setting.key === "lang")
+                                                    location.reload();
+                                            }}
                                         >
                                             {option[data.language]}
                                         </button>

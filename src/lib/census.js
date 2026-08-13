@@ -57,7 +57,7 @@ export const planets = [
         orbitalPeriod: 2234,
         phase: 0,
         T_eq: 168,
-        orbitLineColor: "#ff8989"
+        orbitLineColor: "#DEC9C2"
     },
 ];
 

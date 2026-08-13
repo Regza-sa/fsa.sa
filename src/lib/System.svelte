@@ -1,5 +1,5 @@
 <script>
-    let { lang, setUI, interactable = true } = $props();
+    let { lang, setUI, interactable = true, audioOn = true } = $props();
     import {
         waddahAudio,
         aynAudio,
@@ -19,11 +19,20 @@
         orbitPoint,
     } from "$lib/census";
     import OrbitLines from "$lib/OrbitLines.svelte";
+
     import Waddah from "$lib/planets/waddah.svelte";
     import Ayn from "$lib/planets/ayn.svelte";
+    import Nafis from "$lib/planets/Nafis.svelte";
     import Rahhal from "$lib/planets/rahhal.svelte";
     import Flare from "$lib/planets/Flare.svelte";
-    import { waddahIcon, aynIcon, rahhalIcon } from "$lib/assets/planeticons";
+    import Fasil from "$lib/planets/Fasil.svelte";
+
+    import {
+        waddahIcon,
+        aynIcon,
+        rahhalIcon,
+        nafisIcon,
+    } from "$lib/assets/planeticons";
     import { T, useTask, useThrelte } from "@threlte/core";
     import { OrbitControls, HTML } from "@threlte/extras";
     import {
@@ -151,12 +160,13 @@
         3: waddahAudio,
         4: nafisAudio,
     };
-    const audioVolume = { 0: 0.2, 1: 0.2, 2: 0.4, 3: 0.15, 4: 0.4 };
+    const audioVolume = { 0: 0.2, 1: 0.2, 2: 0.4, 3: 0.15, 4: 0.2 };
     const audioSeek = { 0: 0.5, 1: 0.5, 2: 2, 3: 0.5, 4: 0.5 };
 
     let audioEls = $state([]);
     let playing = $state(-1); // bodyid
     let called = false;
+    let armed = false;
 
     let ctx = null;
     let gains = {};
@@ -179,8 +189,34 @@
         }
     }
 
+    const SILENCE = 0.0015;
+
+    function fadeOut(id, delta) {
+        const gain = gains[id];
+        if (!gain) return;
+        gain.gain.value += (0 - gain.gain.value) * Math.min(1, delta * 3);
+        if (gain.gain.value < SILENCE) {
+            gain.gain.value = 0;
+            const audio = audioEls[id];
+            if (audio && !audio.paused) audio.pause();
+        }
+    }
+
     function unlockAudio() {
-        if (ctx && ctx.state === "suspended") ctx.resume();
+        if (called) return;
+        audioInit();
+        ctx.resume();
+        for (let i = 0; i < bodies.length; i++) {
+            const id = bodies[i].id;
+            const audio = audioEls[id];
+            if (!audio) continue;
+            audio
+                .play()
+                .then(() => {
+                    if (gains[id].gain.value === 0) audio.pause();
+                })
+                .catch(() => {});
+        }
     }
 
     function seek(seconds, audio) {
@@ -208,16 +244,16 @@
     useTask((delta) => {
         elapsed += delta;
 
-        if (Object.keys(audioEls).length == bodies.length && !called) {
+        if (!armed && audioEls.filter(Boolean).length == bodies.length) {
+            armed = true;
             window.addEventListener("pointerdown", unlockAudio, { once: true });
-            audioInit();
+            window.addEventListener("touchend", unlockAudio, { once: true });
         }
 
         const body = bodies[activeBody];
         const mesh = meshes[activeBody];
         let targetOpacity = 0.5;
         let sphereTargetOpacity = 1;
-        let targetVolume = 0;
 
         if (controls) {
             const d = controls.getDistance();
@@ -258,20 +294,17 @@
                 setUI(activeBody);
             }
 
-            if (playing == -1 && called) {
+            if (audioOn && playing == -1 && called) {
                 playing = activeBody;
                 playAudio(activeBody);
             }
 
+            if (!audioOn) playing = -1;
+
             if (called) {
                 for (let i = 0; i < bodies.length; i++) {
                     const id = bodies[i].id;
-                    if (id != playing) {
-                        let gain = gains[id];
-                        gain.gain.value +=
-                            (targetVolume - gain.gain.value) *
-                            Math.min(1, delta * 3);
-                    }
+                    if (id != playing) fadeOut(id, delta);
                 }
             }
         } else {
@@ -282,10 +315,7 @@
             playing = -1;
             if (called) {
                 for (let i = 0; i < bodies.length; i++) {
-                    let gain = gains[bodies[i].id];
-                    gain.gain.value +=
-                        (targetVolume - gain.gain.value) *
-                        Math.min(1, delta * 3);
+                    fadeOut(bodies[i].id, delta);
                 }
             }
         }
@@ -338,10 +368,10 @@
 <T.PointLight intensity={starIntensity} />
 
 <!-- Fasil mesh-->
-<T.Mesh oncreate={(mesh) => (meshes[star.id] = mesh)}>
-    <T.SphereGeometry args={[FASIL_MESH_RADIUS, 32, 32]} />
-    <T.MeshBasicMaterial color="#ffcc66" depthWrite={false} />
-</T.Mesh>
+<Fasil
+    bodyRadius={FASIL_MESH_RADIUS}
+    output={(mesh) => (meshes[star.id] = mesh)}
+/>
 
 <!--Fasil Flares-->
 <Flare
@@ -388,14 +418,8 @@
     {@const pos = orbitPoint(body, angle)}
     {@const active = activeBody === body.id}
 
-    {#if body.id !== 3 && body.id !== 2 && body.id !== 1}
-        <T.Mesh
-            position={[pos.x, pos.y, pos.z]}
-            oncreate={(mesh) => (meshes[body.id] = mesh)}
-        >
-            <T.SphereGeometry args={[bodyRadiusUnits(body), 64, 32]} />
-            <T.MeshStandardMaterial color="teal" roughness={1} metalness={0} />
-        </T.Mesh>
+    {#if body.id === 4}
+        <Nafis output={(x) => (meshes[body.id] = x)} nafisPosition={pos} />
     {:else if body.id === 3}
         <Waddah output={(x) => (meshes[body.id] = x)} waddahPosition={pos} />
     {:else if body.id === 2}
@@ -422,8 +446,13 @@
             }}
             onpointerdowncapture={(e) => e.stopPropagation()}
         >
-            {#if body.id !== 3 && body.id !== 2 && body.id !== 1}
-                <span class="ring" style:opacity={sphereOpacity}></span>
+            {#if body.id === 4}
+                <img
+                    class="icon"
+                    src={nafisIcon}
+                    style:opacity={sphereOpacity}
+                    alt="Nafis icon"
+                />
             {:else if body.id === 3}
                 <img
                     class="icon"

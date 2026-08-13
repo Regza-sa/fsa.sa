@@ -23,7 +23,10 @@ function resolveLang(header) {
 
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle({ event, resolve }) {
-    const lang = FORCE ?? resolveLang(event.request.headers.get("accept-language"));
+    const saved = event.cookies.get("lang");
+    const lang =
+        (SUPPORTED.includes(saved) ? saved : null) ??
+        resolveLang(event.request.headers.get("accept-language"));
     const dir = lang === "ar" ? "rtl" : "ltr";
 
     event.locals.lang = lang;
